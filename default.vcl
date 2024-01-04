@@ -1,14 +1,16 @@
 # Based on many templates including
 # https://github.com/mattiasgeniar/varnish-4.0-configuration-templates/blob/master/default.vcl
 
+# Edited to match plesk configuration: https://support.plesk.com/hc/en-us/articles/12376925289879-How-to-configure-varnish-cache-for-a-domain-in-Plesk-
+
 vcl 4.0;
 
 import std;
 import directors;
 
-backend server1 {
-  .host = "127.0.0.1";             # IP or Hostname of backend
-  .port = "8080";                  # Port Apache or whatever is listening
+backend default {
+  .host = "XXX.XXX.XXX.XXX";             # IP or Hostname of backend
+  .port = "7080";                  # Plesk configured apache port
   .max_connections = 800;          # That's it
   .first_byte_timeout = 300s;      # How long to wait before we receive a first byte from our backend?
   .connect_timeout = 300s;         # How long to wait for a backend connection?
@@ -19,17 +21,13 @@ backend server1 {
 acl purge {
     "localhost";
     "127.0.0.1";
-    "104.131.26.178"; # eth0
-    "10.132.122.116"; # eth1
-    "psynapticmedia.com";
+    "XXX.XXX.XXX.XXX"; # eth0
 }
 
 sub vcl_init {
   # Called when VCL is loaded, before any requests pass through it. Typically used to initialize VMODs.
   new vdir = directors.round_robin();
-  vdir.add_backend(server1);
-  #vdir.add_backend(server2);
-  #vdir.add_backend(server3);
+  vdir.add_backend(default);
 }
 
 
