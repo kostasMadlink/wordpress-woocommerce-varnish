@@ -78,6 +78,11 @@ sub vcl_recv {
         return (pass);
     }
 
+  # PUT requests will not be cached for REST API
+    if (req.method == "PUT") {
+        return (pass);
+    }
+
   # Only cache GET or HEAD requests. This makes sure the POST requests are always passed.
   #if (req.method != "GET" && req.method != "HEAD") {
   #  return (pass);
@@ -100,14 +105,14 @@ sub vcl_recv {
     }
 
   # Paid memberships Pro PMP
-    if ( req.url ~ "(membership-account|membership-checkout)" ) {
-        return (pass);
-    }
+  # if ( req.url ~ "(membership-account|membership-checkout)" ) {
+  #     return (pass);
+  # }
 
   # WordPress Social Login Plugin. Note: Need to develop this. Please share if you have an example.
-    if (req.url ~ "(wordpress-social-login|wp-social-login)") {
-        return (pass);
-    }
+  # if (req.url ~ "(wordpress-social-login|wp-social-login)") {
+  #     return (pass);
+  # }
 
   # WP-Affiliate
     if ( req.url ~ "\?ref=" ) {
@@ -115,9 +120,9 @@ sub vcl_recv {
     }
 
   # phpBB Logged in users and ACP
-    if ( req.url ~ "(/forumPM/adm/|ucp.php?mode=|\?mode=edit)" ) {
-        return (pass);
-    }
+  # if ( req.url ~ "(/forumPM/adm/|ucp.php?mode=|\?mode=edit)" ) {
+  #     return (pass);
+  # }
 
 
 ###
@@ -140,7 +145,7 @@ sub vcl_recv {
     set req.http.Cookie = regsuball(req.http.Cookie, "utmccn.=[^;]+(; )?", "");
 
     # Remove the Quant Capital cookies (added by some plugin, all __qca)
-    set req.http.Cookie = regsuball(req.http.Cookie, "__qc.=[^;]+(; )?", "");
+    # set req.http.Cookie = regsuball(req.http.Cookie, "__qc.=[^;]+(; )?", "");
 
     # Remove the wp-settings-1 cookie
     set req.http.Cookie = regsuball(req.http.Cookie, "wp-settings-1=[^;]+(; )?", "");
@@ -152,11 +157,11 @@ sub vcl_recv {
     set req.http.Cookie = regsuball(req.http.Cookie, "wordpress_test_cookie=[^;]+(; )?", "");
 
     # Remove the phpBB cookie. This will help us cache bots and anonymous users.
-    set req.http.Cookie = regsuball(req.http.Cookie, "style_cookie=[^;]+(; )?", "");
-    set req.http.Cookie = regsuball(req.http.Cookie, "phpbb3_psyfx_track=[^;]+(; )?", "");
+    # set req.http.Cookie = regsuball(req.http.Cookie, "style_cookie=[^;]+(; )?", "");
+    # set req.http.Cookie = regsuball(req.http.Cookie, "phpbb3_psyfx_track=[^;]+(; )?", "");
 
     # Remove the cloudflare cookie
-    set req.http.Cookie = regsuball(req.http.Cookie, "__cfduid=[^;]+(; )?", "");
+    # set req.http.Cookie = regsuball(req.http.Cookie, "__cfduid=[^;]+(; )?", "");
 
     # Remove the PHPSESSID in members area cookie
     set req.http.Cookie = regsuball(req.http.Cookie, "PHPSESSID=[^;]+(; )?", "");
@@ -320,33 +325,33 @@ sub vcl_backend_response {
 ### Targeted TTL
 ###
   # Members section is very dynamic and uses cookies (see cookie settings in vcl_recv).
-  if (bereq.url ~ "/members/") {
-    set beresp.ttl = 2d;
-  }
+  #if (bereq.url ~ "/members/") {
+  #  set beresp.ttl = 2d;
+  #}
   # My Shop section is fairly static when browsing the catalog, but woocommerce is passed in vcl_recv.
-  if (bereq.url ~ "/psyshop/") {
-    set beresp.ttl = 1d;
-  }
+  #if (bereq.url ~ "/psyshop/") {
+  #  set beresp.ttl = 1d;
+  #}
   # phBB Forum
   # Note: Cookies are dropped for phpBB in vcl_recv which disables the forums cookies, however, logged in users still get a hash.
   # I set the anonymous user as a bot in phpBB admin settings. As bots dont use cookies, this gives 99% hit rate.
-  if (bereq.url ~ "/forumPM/") {
-    set beresp.ttl = 2h;
-  }
+  #if (bereq.url ~ "/forumPM/") {
+  #  set beresp.ttl = 2h;
+  #}
   # Long ttl sites
-  if (bereq.url ~ "(example.com|example2.com)") {
-    set beresp.ttl = 1w;
-  }
+  #if (bereq.url ~ "(example.com|example2.com)") {
+  #  set beresp.ttl = 1w;
+  #}
 
   # Large static files are delivered directly to the end-user without
   # waiting for Varnish to fully read the file first.
   # Varnish 4 fully supports Streaming, so use streaming here to avoid locking.
   # I do not stream large files from my server, I use a CDN or dropbox, so I have not tested this.
-  if (bereq.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
-    unset beresp.http.set-cookie;
-    set beresp.do_stream = true;  # Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if the backend doesn't send a Content-Length header, so only enable it for big objects
-    set beresp.do_gzip = false;   # Don't try to compress it for storage
-  }
+  #if (bereq.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
+  #  unset beresp.http.set-cookie;
+  #  set beresp.do_stream = true;  # Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if the backend doesn't send a Content-Length header, so only enable it for big objects
+  #  set beresp.do_gzip = false;   # Don't try to compress it for storage
+  #}
 
   # don't cache response to posted requests or those with basic auth
   if ( bereq.method == "POST" || bereq.http.Authorization ) {
